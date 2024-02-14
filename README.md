@@ -4,5 +4,3 @@ This is the game Mancala coded in OCaml.
 
 Needed Imporvements/Features:
 - Stealling functionality
-- not depositing in opponents bucket
-- End game function that determines winner
