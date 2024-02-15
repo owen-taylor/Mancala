@@ -1,8 +1,7 @@
-
 let initial_board_vals = [4; 4; 4; 4; 4; 4; 0; 4; 4; 4; 4; 4; 4; 0];;
 let board_spacers = ["\n|   | "; " | "; " | "; " | "; " | "; " | "; " | "; " | \n|   |-----------------------|   | \n| "; " | "; " | "; " | "; " | "; " | "; " | "; " |   |";" |"];;
 
-let rec filledBoardFunc (board_vals: string list) (board_spacers: string list) (return_board: string) = 
+let rec fillBoard (board_vals: string list) (board_spacers: string list) (return_board: string) = 
   match board_spacers with
   | [] -> return_board
   | h1::t1 ->
@@ -10,37 +9,39 @@ let rec filledBoardFunc (board_vals: string list) (board_spacers: string list) (
       |h2::t2 -> 
         if List.length t2 == 7 then
           let rTail = List.rev t2 in
-          filledBoardFunc (rTail) (t1) (return_board ^ h1 ^ h2)
+          fillBoard (rTail) (t1) (return_board ^ h1 ^ h2)
         else
-          filledBoardFunc (t2) (t1) (return_board ^ h1 ^ h2)
+          fillBoard (t2) (t1) (return_board ^ h1 ^ h2)
       |[] -> 
-        return_board ^ h1
-let prettyPrint (x: string) =
+        return_board ^ h1;;
+
+let printBoard (board) =
+  let strBoard = List.map string_of_int board in
+  let filledBoard = fillBoard (strBoard) (board_spacers) ("") ^ "\n" in
   "\n             Player 1" ^
   "\n      1   2   3   4   5   6" ^
   "\n---------------->----------------" ^
-  x ^
+  filledBoard ^
   "----------------<----------------\n" ^
   "      6   5   4   3   2   1\n" ^
-  "             Player 2\n"
+  "             Player 2\n";;
 
-let rec moveMarbles (value) (index) (board: int list) (turn: bool) = 
-  if value == 0 then
-    board
-  else
-    if (turn == true) && (index == 12) then
-      moveMarbles (value) (-1) (board) (turn)
-    else
-      if (turn == false) && (index == 5) then
-        moveMarbles (value) (6) (board) (turn)
-      else 
-        if index == 14 then
-          moveMarbles (value+1) (-1) (board) (turn)
-        else
-          let boardInc = List.mapi (fun i x -> if i == index+1 then x+1 else x) board in
-          moveMarbles (value-1) (index + 1) (boardInc) (turn)
+let int_of_string_default str = 
+  try int_of_string str
+  with Failure _ -> -10;;
 
-let endGameDepositLogic i x player1Total player2Total = 
+let printTurn board player1Turn = 
+    let playerString = if player1Turn then "Player 1" else "Player 2" in
+    let directions = playerString ^ ", Select the marbles you would like to move (1--6): " in 
+  
+    let printableBoard = printBoard board in
+  
+    let () = print_string printableBoard in 
+    let () = print_string directions in 
+  
+    int_of_string_default (read_line());;
+
+let setGoalsToTotalScore i x player1Total player2Total = 
   if x != -2 then
     if i == 6 then
       player1Total
@@ -50,20 +51,25 @@ let endGameDepositLogic i x player1Total player2Total =
       else
         0
   else
-    0
+    0;;
 
-
-let depositEndGameMarbles (board: int list) = 
+let depositLeftoverMarbles (board: int list) = 
   let player1Board = List.filteri (fun i x -> i < 7 && x != -2) board in
   let player1Total = List.fold_left (fun acc x -> acc + x) 0 player1Board in
 
   let player2Board = List.filteri (fun i x -> i > 6 && x != -2) board in
   let player2Total = List.fold_left (fun acc x -> acc + x) 0 player2Board in 
 
-  List.mapi (fun i x -> endGameDepositLogic i x player1Total player2Total ) board
+  List.mapi (fun i x -> setGoalsToTotalScore i x player1Total player2Total ) board;;
+
+let gameNotOver board = 
+  match board with
+  | 0::0::0::0::0::0::_ -> false
+  | _::_::_::_::_::_::_::0::0::0::0::0::0::_ -> false
+  | _ -> true;;
 
 let endGame (gameBoard: int list) = 
-  let finalBoard = depositEndGameMarbles gameBoard in 
+  let finalBoard = depositLeftoverMarbles gameBoard in 
   let player1Score = 
     match finalBoard with
     | _::_::_::_::_::_::x::_ -> x 
@@ -75,75 +81,125 @@ let endGame (gameBoard: int list) =
 
   if player1Score > player2Score then
     let () = print_string("Player 1 won!!!") in 
-    let strBoard = List.map string_of_int (depositEndGameMarbles gameBoard) in 
-
-    let () = print_string(prettyPrint (filledBoardFunc (strBoard) (board_spacers) ("") ^ "\n")) in
+    let () = print_string(printBoard (depositLeftoverMarbles gameBoard)) in
     true
+    
   else 
     if player2Score > player1Score then
       let () = print_string("Player 2 won!!!") in 
-      let strBoard = List.map string_of_int (depositEndGameMarbles gameBoard) in 
-  
-      let () = print_string(prettyPrint (filledBoardFunc (strBoard) (board_spacers) ("") ^ "\n")) in
+      let () = print_string(printBoard (depositLeftoverMarbles gameBoard)) in
       true
+
     else
       let () = print_string("Draw :(") in 
-      let strBoard = List.map string_of_int (depositEndGameMarbles gameBoard) in 
-  
-      let () = print_string(prettyPrint (filledBoardFunc (strBoard) (board_spacers) ("") ^ "\n")) in 
+      let () = print_string(printBoard (depositLeftoverMarbles gameBoard)) in 
+      true;;
+
+let zeroOutCell board cell =
+  List.mapi (fun i x -> if i == cell then 0 else x) board;;
+
+let notValidCell cellNumber player1Turn = 
+  if player1Turn then 
+    not (cellNumber+1 >=1 && cellNumber+1 <= 6) 
+  else 
+    not (cellNumber-6 >=1 && cellNumber-6 <= 6);;
+
+let normalizeLappedBoard cell = 
+  if cell > 13 then
+    cell - ((cell / 14) * 14)
+  else
+    cell
+
+let playerLandedInGoal cellNumber player1Turn = 
+  if player1Turn then
+    if cellNumber == 6 then
       true
+    else
+      false
+  else
+    if cellNumber == 13 then
+      true
+    else
+      false;;
 
-let rec game_func (gameBoard: int list)(t: bool) = 
-  let int_of_string_default str = 
-    try int_of_string str
-    with Failure _ -> 0 in
-    
-  match gameBoard with
-    | 0::0::0::0::0::0::_ -> 
-      endGame gameBoard
-    | _::_::_::_::_::_::_::0::0::0::0::0::0::_ -> 
-      endGame gameBoard
-    | _ ->
-      if t == true then
-        (*player 1 turn*)
-        let strBoard = List.map string_of_int gameBoard in
-        let () = print_string(prettyPrint (filledBoardFunc (strBoard) (board_spacers) ("") ^ "\n" )) in
-        let () = print_string("Player 1, Select the marbles you would like to move (1--6): ") in
-        let input = read_line() in
+let playerLandedInEmptySpace board lastCell player1Turn = 
+  if lastCell <= 12 then
+    let numberOfMarblesInLastCell = List.nth board lastCell in
+    let numberOfMarblesInOpponentCell = List.nth board (12-lastCell) in
 
-        let cellPicked = int_of_string_default input in
-
-        if cellPicked < 1 || cellPicked > 6 then
-          let() = print_string("Please choose an integer between 1 and 6") in 
-          game_func gameBoard t
-        else
-          let newBoard = moveMarbles (List.nth gameBoard (cellPicked - 1))(cellPicked - 1)(List.mapi (fun i x -> if i == cellPicked -1 then 0 else x) gameBoard)(t) in
-          if (List.nth gameBoard (cellPicked-1)) + cellPicked-1 == 6 then
-            let () = print_string("Player 1 goes again!") in
-            game_func newBoard t
-          else
-            game_func newBoard (not t)
+    if player1Turn && lastCell >= 0 && lastCell <= 5 && numberOfMarblesInOpponentCell > 0 then
+      if numberOfMarblesInLastCell == 0 then
+        true
       else
-        (*player 2 turn*)
-        let strBoard = List.map string_of_int gameBoard in 
-        let () = print_string(prettyPrint (filledBoardFunc (strBoard) (board_spacers) ("") ^ "\n" )) in
-        let () = print_string("Player 2, Select the marbles you would like to move (1-6): ") in
-        let input = read_line() in
-
-        let cellPicked = int_of_string_default input in 
-
-        if cellPicked < 1 || cellPicked > 6 then
-          game_func gameBoard t
+        false
+    else
+      if lastCell >= 7 && lastCell <= 12 && numberOfMarblesInOpponentCell > 0 then
+        if numberOfMarblesInLastCell == 0 then
+          true
         else
-          let newBoard = moveMarbles (List.nth gameBoard (cellPicked + 6))(cellPicked + 6)(List.mapi (fun i x -> if i == cellPicked+6 then 0 else x) gameBoard)(t) in
-          if (List.nth gameBoard (cellPicked+6)) + cellPicked+6 == 13 then
-            let () = print_string("Player 2 goes again!") in
-            game_func newBoard t
+          false
+      else
+        false
+  else
+    false;;
+
+let moveStealToGoal board goal playerCell opponentCell = 
+  let stealValue = (List.nth board opponentCell) + 1 in
+  let boardWithStealInGoal = List.mapi (fun i x -> if i == goal then x + stealValue else x) board in 
+  List.mapi (fun i x -> if i == playerCell || i == opponentCell then 0 else x) boardWithStealInGoal
+
+
+let steal board newCell player1Turn = 
+  let goal = if player1Turn then 6 else 13 in 
+  let opponentCell = 12-newCell in
+  moveStealToGoal board goal newCell opponentCell;;
+
+let rec moveMarbles (marblesLeft) (index) (board: int list) (player1Turn: bool) = 
+  if marblesLeft == 0 then
+    board
+  else
+    if (player1Turn == true) && (index == 12) then
+      moveMarbles (marblesLeft) (-1) (board) (player1Turn)
+    else
+      if (player1Turn == false) && (index == 5) then
+        moveMarbles (marblesLeft) (6) (board) (player1Turn)
+      else 
+        if index == 14 then
+          moveMarbles (marblesLeft+1) (-1) (board) (player1Turn)
+        else
+          let boadWithAddedMarble = List.mapi (fun i x -> if i == index+1 then x+1 else x) board in
+          moveMarbles (marblesLeft-1) (index + 1) (boadWithAddedMarble) (player1Turn);;
+
+let rec playGame (gameBoard: int list)(player1Turn: bool) = 
+    
+  if gameNotOver gameBoard then
+    let pickedCell = (printTurn gameBoard player1Turn) + if player1Turn then -1 else 6 in
+
+    if notValidCell pickedCell player1Turn then
+      let() = print_string("Please choose an integer between 1 and 6") in 
+      playGame gameBoard player1Turn
+
+    else
+        let numberOfMarblesPicked = List.nth gameBoard pickedCell in
+        let lastCell = normalizeLappedBoard (pickedCell + numberOfMarblesPicked) in
+        let zeroedOutCell = zeroOutCell gameBoard pickedCell in
+        let newBoard = moveMarbles numberOfMarblesPicked pickedCell zeroedOutCell player1Turn in
+
+
+        if playerLandedInGoal lastCell player1Turn then
+          let () = if player1Turn then print_string("Player 1 goes again!") else print_string("Player 2 goes again!") in
+          playGame newBoard player1Turn
+
+        else
+          if playerLandedInEmptySpace gameBoard lastCell player1Turn then
+            let () = if player1Turn then print_string("Player 1 Stole!") else print_string("Player 2 Stole") in
+            playGame (steal newBoard lastCell player1Turn) (not player1Turn)
           else
-            game_func newBoard (not t);;
+            playGame newBoard (not player1Turn)
+  else
+    endGame gameBoard;;
 
-
-game_func initial_board_vals true
+playGame initial_board_vals true
 
 (* let rec run_game n t = 
 
