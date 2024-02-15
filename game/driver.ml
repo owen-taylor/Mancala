@@ -158,17 +158,17 @@ let rec moveMarbles (marblesLeft) (index) (board: int list) (player1Turn: bool) 
   if marblesLeft == 0 then
     board
   else
-    if (player1Turn == true) && (index == 12) then
-      moveMarbles (marblesLeft) (-1) (board) (player1Turn)
+    if (player1Turn == true) && (index == 13) then
+      moveMarbles (marblesLeft) (0) (board) (player1Turn)
     else
-      if (player1Turn == false) && (index == 5) then
-        moveMarbles (marblesLeft) (6) (board) (player1Turn)
+      if (player1Turn == false) && (index == 6) then
+        moveMarbles (marblesLeft) (7) (board) (player1Turn)
       else 
         if index == 14 then
-          moveMarbles (marblesLeft+1) (-1) (board) (player1Turn)
+          moveMarbles (marblesLeft) (0) (board) (player1Turn)
         else
-          let boadWithAddedMarble = List.mapi (fun i x -> if i == index+1 then x+1 else x) board in
-          moveMarbles (marblesLeft-1) (index + 1) (boadWithAddedMarble) (player1Turn);;
+          let boardWithAddedMarble = List.mapi (fun i x -> if i == index then x+1 else x) board in
+          moveMarbles (marblesLeft-1) (index + 1) (boardWithAddedMarble) (player1Turn);;
 
 let rec playGame (gameBoard: int list)(player1Turn: bool) = 
     
@@ -183,8 +183,8 @@ let rec playGame (gameBoard: int list)(player1Turn: bool) =
         let numberOfMarblesPicked = List.nth gameBoard pickedCell in
         let lastCell = normalizeLappedBoard (pickedCell + numberOfMarblesPicked) in
         let zeroedOutCell = zeroOutCell gameBoard pickedCell in
-        let newBoard = moveMarbles numberOfMarblesPicked pickedCell zeroedOutCell player1Turn in
 
+        let newBoard = moveMarbles numberOfMarblesPicked (pickedCell+1) zeroedOutCell player1Turn in
 
         if playerLandedInGoal lastCell player1Turn then
           let () = if player1Turn then print_string("Player 1 goes again!") else print_string("Player 2 goes again!") in
@@ -200,13 +200,3 @@ let rec playGame (gameBoard: int list)(player1Turn: bool) =
     endGame gameBoard;;
 
 playGame initial_board_vals true
-
-(* let rec run_game n t = 
-
-  if t == true then
-    let () = print_string("Player 1, select which marbles you want to move: ") in 
-      let cellPicked = read_int() in  *)
-
-
-(* let test = read_int();;
-print_int test; *)
